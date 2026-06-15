@@ -25,3 +25,8 @@ export const fetchNowPlaying = (page = 1) =>
 // Search movies by title, paginated. Same response shape as Now Playing.
 export const searchMovies = (query, page = 1) =>
   request('/search/movie', { query, page })
+
+// Full details for one movie. Returns { title, runtime, release_date,
+// genres[], overview, backdrop_path, ... } — fields the list endpoints omit.
+export const fetchMovieDetails = (id) =>
+  request(`/movie/${id}`, { language: 'en-US' })

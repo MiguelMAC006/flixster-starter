@@ -3,7 +3,7 @@ import MovieCard from './MovieCard'
 import { fetchNowPlaying, searchMovies } from '../services/tmdb'
 import './MovieList.css'
 
-const MovieList = ({ mode, query, page, onTotalPages }) => {
+const MovieList = ({ mode, query, page, onTotalPages, onCardClick }) => {
   const [movies, setMovies] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -66,7 +66,7 @@ const MovieList = ({ mode, query, page, onTotalPages }) => {
   return (
     <div className="movie-list">
       {movies.map((movie) => (
-        <MovieCard key={movie.id} movie={movie} />
+        <MovieCard key={movie.id} movie={movie} onClick={onCardClick} />
       ))}
     </div>
   )

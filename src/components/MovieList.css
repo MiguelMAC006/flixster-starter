@@ -1,3 +1,11 @@
+/*
+ * Responsive grid — breakpoint plan
+ * --------------------------------------------------------------
+ * Wide desktop (>= 1024px) : ~6 cards/row, card min 180px (base rule below)
+ * Tablet      (600-1023px) : ~3-4 cards/row, card min 150px
+ * Mobile      (< 600px)    : exactly 2 cards/row (explicit 2-col)
+ * Breakpoints: 600px and 1024px.
+ */
 .movie-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -5,6 +13,24 @@
   padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* Tablet: smaller min so ~3-4 columns fit comfortably. */
+@media (max-width: 1023px) {
+  .movie-list {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+    padding: 16px;
+  }
+}
+
+/* Mobile: always exactly 2 readable cards per row. */
+@media (max-width: 599px) {
+  .movie-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
 }
 
 .movie-list__status {

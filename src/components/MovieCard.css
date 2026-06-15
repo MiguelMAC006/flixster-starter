@@ -99,3 +99,28 @@
   color: #ffd24a;
   white-space: nowrap;
 }
+
+/* Mobile (2-up): shrink text and action buttons so cards stay uncluttered. */
+@media (max-width: 599px) {
+  .movie-card__info {
+    padding: 8px 10px;
+  }
+
+  .movie-card__title {
+    font-size: 0.85rem;
+  }
+
+  .movie-card__rating {
+    font-size: 0.8rem;
+  }
+
+  .movie-card__icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .movie-card__icon-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
