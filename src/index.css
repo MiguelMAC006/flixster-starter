@@ -4,8 +4,42 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Logo palette */
+  --crimson: #c1121f;
+  --crimson-bright: #e23b48;
+  --forest: #2d6a4f;
+  --forest-bright: #3f9170;
+  --gold: #d4a017;
+  --gold-bright: #e8b93a;
+
+  /* Surfaces */
+  --bg-main: #14181c;
+  --bg-header: #0b1117;
+  --bg-panel: #1f2933;
+  --border: #2c3440;
+
+  /* Text */
+  --text-primary: #f4f7fa;
+  --text-secondary: #9aa6b2;
+  --text-muted: #6b7785;
+
+  /* Effects */
+  --gold-glow: rgba(212, 160, 23, 0.45);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-card-hover: 0 10px 28px rgba(0, 0, 0, 0.6);
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

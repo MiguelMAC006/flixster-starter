@@ -1,10 +1,10 @@
 # Component Architecture:
 ### App
-- Responsibility: Root component; owns app-level state (search, mode, pagination, sort, selection, favorites/watched) and wires every child together. The actual fetch (Now Playing or Search) lives in MovieList, driven by props from App.
-- Renders: The entire page — Header, SearchBar, SortControl, MovieList, Footer (and conditionally MovieModal).
+- Responsibility: Root component; owns the app-level orchestration state (search, mode, pagination, sort) and wires every child together. The actual fetch (Now Playing or Search) and the modal/details state both live in MovieList, driven by props from App.
+- Renders: The entire page — Header, SearchBar, SortControl, MovieList, Footer, and the "Load More" button.
 - Props: none (root).
-- States: searchQuery, submittedQuery, mode, page, selectedMovieId, details, detailsLoading, detailsError, sortOption, favorites, watched (see State Architecture). The `movies` array, `totalPages`, and the `isLoading`/`error` flags are owned by MovieList.
-- Children: Header, SearchBar, SortControl, MovieList, Footer, MovieModal
+- States: searchQuery, submittedQuery, mode, page, totalPages, sortOption (see State Architecture). The `movies` array and the `isLoading`/`error` flags — plus all modal/details state (`selectedMovieId`, `details`, `detailsLoading`, `detailsError`) — are owned by MovieList.
+- Children: Header, SearchBar, SortControl, MovieList, Footer
 
 ### Header
 - Responsibility: Display the app logo/title and banner.
@@ -28,27 +28,28 @@
 - Children: None
 
 ### MovieList
-- Responsibility: Fetch the Now Playing movies from TMDb and lay out the grid of MovieCard components.
-- Renders: A responsive grid of MovieCards (plus loading and error states).
-- Props: mode ("now_playing" | "search"), query (string, the submitted search text), page (number), sortOption (string — "default" | "title" | "release_date" | "vote_average"; selects the render-time sort), onTotalPages (fn — reports the response's `total_pages` up to App), onCardClick (fn — receives a clicked card's `movie.id` and is passed straight down to each MovieCard's `onClick`), favorites (Set/array), watched (Set/array), onToggleFavorite (fn), onToggleWatched (fn).
-- States: movies (Array, init []), isLoading (Boolean, init false), error (String|null, init null), totalPages (Number, init 1).
-- Trigger: A useEffect keyed on `[mode, query, page]` fetches the matching endpoint. When `page === 1` the results **replace** `movies`; when `page > 1` they are **appended**. `total_pages` is stored locally and reported up via `onTotalPages` so App can hide/disable "Load More".
-- Children: MovieCard
+- Responsibility: Fetch the movie list (Now Playing or Search) from TMDb, lay out the grid of MovieCard components, and own the modal — including the per-movie details fetch.
+- Renders: A responsive grid of MovieCards (plus loading and error states), and the MovieModal when a card is selected.
+- Props: mode ("now_playing" | "search"), query (string, the submitted search text), page (number), sortOption (string — "default" | "title" | "release_date" | "vote_average"; selects the render-time sort), onTotalPages (fn — reports the response's `total_pages` up to App). It owns the card-click handler internally (`handleCardClick`) rather than receiving an `onCardClick` prop.
+- States: movies (Array, init []), isLoading (Boolean, init false), error (String|null, init null). Modal/details state lives here too: selectedMovieId (Number|null, init null), details (Object|null, init null), detailsLoading (Boolean, init false), detailsError (String|null, init null). (`totalPages` is reported up to App, which owns it.)
+- Triggers: (1) A useEffect keyed on `[mode, query, page, onTotalPages]` fetches the matching list endpoint — when `page === 1` the results **replace** `movies`, when `page > 1` they are **appended**; `total_pages` is reported up via `onTotalPages` so App can hide/disable "Load More". (2) A second useEffect keyed on `[selectedMovieId]` calls `fetchMovieDetails(id)` when a card is selected, storing the response in `details` (with an `ignore` flag to discard a stale response).
+- Children: MovieCard, MovieModal
 
 ### MovieCard
 - Responsibility: Display a movie's poster, title, and rating; on click open the MovieModal.
 - Renders: A tile with a poster image, title, vote average, and favorite/watched toggle icons.
 - Props: movie ({ id, title, poster_path, vote_average }), onClick (fn — called with `movie.id` when the card is clicked, opening the modal), isFavorite (bool), isWatched (bool), onToggleFavorite (fn), onToggleWatched (fn). The favorite/watched icon buttons `stopPropagation` so toggling them doesn't also open the modal.
-- States: None (favorite/watched state is lifted to App so the Favorites/Watched pages can read it — see State Architecture).
+- States: None.
+- ⚠️ **As-built note:** The heart/eye toggle buttons are built and render on every card, but the favorites/watched props (`isFavorite`, `isWatched`, `onToggleFavorite`, `onToggleWatched`) currently **default to `false`/no-op** because MovieList does not yet pass them — no `favorites`/`watched` state is wired from a parent. So the toggles render with the correct UI but have no effect today. Wiring this state (in App or MovieList) is the planned next step — see State Architecture.
 - Children: None
 
 ### MovieModal
-- Responsibility: Display full details for the selected movie. (An AI watch recommendation is planned for a later milestone — see AI Feature Spec — and is not built yet.)
-- Renders: A centered, shadowed pop-up over a darkened (semi-transparent) backdrop showing backdrop image, title, runtime, release date, genres, and overview. Also renders loading and error states so a failed details fetch never leaves a broken modal.
-- Props: details (object|null — the fetched Movie Details), isLoading (bool), error (string|null), onClose (fn). (The `aiRecommendation`/`aiLoading`/`aiError` props are deferred to the AI milestone.)
-- Open trigger: The user clicks a MovieCard; the card's `movie.id` flows up to App (via onCardClick), App stores it in `selectedMovieId`, and App renders MovieModal once an id is set.
-- Close mechanisms (all call `onClose`, which clears `selectedMovieId`): an `×` button, clicking the darkened backdrop (but not the modal card itself), and pressing the **Escape** key.
-- States: None (presentational — driven by App via props; it does not fetch).
+- Responsibility: Display full details for the selected movie, plus an AI-generated watch recommendation (see AI Feature Spec).
+- Renders: A centered, shadowed pop-up over a darkened (semi-transparent) backdrop showing backdrop image, title, runtime, release date, genres, overview, and a "Watch Recommendation" section with the AI take (or a loading indicator / fallback). Also renders loading and error states so a failed details fetch never leaves a broken modal.
+- Props: details (object|null — the fetched Movie Details), isLoading (bool), error (string|null), onClose (fn). The AI insight is fetched and held in MovieModal's own state (`aiInsight`, `loadingInsight`) via a `useEffect` on `details` — it is not passed in as a prop.
+- Open trigger: The user clicks a MovieCard; the card calls `onClick(movie.id)`, which is MovieList's `handleCardClick`. MovieList stores the id in `selectedMovieId`, fetches the details, and renders MovieModal once an id is set (passing `details`/`isLoading`/`error`/`onClose`).
+- Close mechanisms (all call `onClose` — MovieList's `handleCloseModal`, which clears `selectedMovieId`, `details`, and `detailsError`): an `×` button, clicking the darkened backdrop (but not the modal card itself), and pressing the **Escape** key.
+- States: aiInsight (String|null, init null), loadingInsight (Boolean, init false) — for the AI recommendation. Otherwise presentational for the TMDb details, which are driven by props.
 - Children: None
 
 ### Footer
@@ -65,9 +66,9 @@ App
 ├── SearchBar
 ├── SortControl (Browse)
 ├── MovieList
-│   └── MovieCard (×N)
-├── Footer
-└── MovieModal (conditional, when selectedMovieId !== null)
+│   ├── MovieCard (×N)
+│   └── MovieModal (conditional, when selectedMovieId !== null)
+└── Footer
 ```
 
 
@@ -136,26 +137,26 @@ Image transformation (not an endpoint): posters and backdrops are built from the
 ### selectedMovieId
 - Type: Number | null
 - Initial Value: null
-- Component: App
-- Trigger: User clicks a MovieCard (set to that card's `movie.id`); cleared to null on modal close. A non-null value both (a) drives the details fetch effect and (b) gates whether MovieModal renders.
+- Component: MovieList
+- Trigger: User clicks a MovieCard (set to that card's `movie.id` via `handleCardClick`); cleared to null on modal close. A non-null value both (a) drives the details fetch effect and (b) gates whether MovieModal renders.
 
 ### details
 - Type: Object | null
 - Initial Value: null
-- Component: App
+- Component: MovieList
 - Trigger: Set to the Movie Details response when the details fetch (keyed on `selectedMovieId`) resolves; cleared to null on modal close so a reopened card never flashes the previous movie. Passed to MovieModal as `details`.
 
 ### detailsLoading
 - Type: Boolean
 - Initial Value: false
-- Component: App
-- Trigger: Set true before the details fetch, false after it resolves/rejects. Drives the modal's loading state.
+- Component: MovieList
+- Trigger: Set true before the details fetch, false after it resolves/rejects. Passed to MovieModal as `isLoading` to drive the modal's loading state.
 
 ### detailsError
 - Type: String | null
 - Initial Value: null
-- Component: App
-- Trigger: Set when the details fetch fails (404/401/network); cleared before the next fetch and on modal close. Drives the modal's friendly error message.
+- Component: MovieList
+- Trigger: Set when the details fetch fails (404/401/network); cleared before the next fetch and on modal close. Passed to MovieModal as `error` to drive the friendly error message.
 
 ### sortOption
 - Type: String
@@ -175,68 +176,74 @@ Image transformation (not an endpoint): posters and backdrops are built from the
 - Component: MovieList
 - Trigger: Set when the Now Playing fetch fails; cleared on the next successful fetch
 
-### favorites
+> ⚠️ **Not yet implemented.** The `favorites`/`watched` entries below describe the
+> *planned* design. MovieCard already renders the heart/eye toggle buttons, but no
+> parent owns this state or passes the toggle props yet, so the buttons are no-ops
+> today. This is the intended next step.
+
+### favorites (planned)
 - Type: Array<number> (movie ids) or Set
 - Initial Value: []
-- Component: App
-- Trigger: User clicks the heart icon on a MovieCard (onToggleFavorite). Lifted to App so the Favorites page can read it.
+- Component: App (planned)
+- Trigger: User clicks the heart icon on a MovieCard (onToggleFavorite). To be lifted to App so a Favorites page can read it.
 
-### watched
+### watched (planned)
 - Type: Array<number> (movie ids) or Set
 - Initial Value: []
-- Component: App
-- Trigger: User clicks the eye icon on a MovieCard (onToggleWatched). Lifted to App so the Watched page can read it.
+- Component: App (planned)
+- Trigger: User clicks the eye icon on a MovieCard (onToggleWatched). To be lifted to App so a Watched page can read it.
 
-### isFavorite / isWatched (derived per card)
+### isFavorite / isWatched (planned, derived per card)
 - Type: Boolean
 - Initial Value: false
-- Component: MovieCard (derived from App's `favorites`/`watched` via props)
-- Trigger: Recomputed whenever favorites/watched change
+- Component: MovieCard (would derive from App's `favorites`/`watched` via props)
+- Trigger: Recomputed whenever favorites/watched change. Currently the props default to `false`, so cards always render the inactive state.
 
-> The `ai*` state below is **deferred to the AI Watch Recommendation milestone** and is not implemented yet — the current modal renders details only.
+> The `ai*` state below is implemented as part of the AI Watch Recommendation milestone. It lives in **MovieModal** (not App), keyed on the `details` prop — see AI Feature Spec.
 
-### aiRecommendation
+### aiInsight
 - Type: String | null
 - Initial Value: null
-- Component: App (passed to MovieModal) — see AI Feature Spec
-- Trigger: Set when the AI call resolves after a movie modal opens
+- Component: MovieModal
+- Trigger: Set to the AI text when `getMovieInsight()` resolves after `details` loads. The service returns a friendly fallback string (rather than throwing) on any failure, so this holds either the recommendation or the fallback.
 
-### aiLoading
+### loadingInsight
 - Type: Boolean
 - Initial Value: false
-- Component: App
-- Trigger: Set true while the AI recommendation is generating, false when done
-
-### aiError
-- Type: String | null
-- Initial Value: null
-- Component: App
-- Trigger: Set when the AI call fails (drives the graceful fallback message)
+- Component: MovieModal
+- Trigger: Set true while the AI recommendation is generating, false when done. Drives the `✨ Getting a recommendation…` indicator.
 
 
 # Data Flow:
-App owns the orchestration state (`mode`, `submittedQuery`, `page`, `totalPages`) and passes `mode`/`query`/`page` down to **MovieList** — but App itself does no network or data work. The actual fetching lives in the **`src/services/tmdb.js`** layer (`fetchNowPlaying(page)`, `searchMovies(query, page)`), which build the URL and return the raw JSON. MovieList runs a `useEffect` keyed on `[mode, query, page]`: it picks the matching service function, reads the `results[]` array, and stores it in its own `movies` state. When `page === 1` the results **replace** `movies` (initial load, a new search, or returning to Now Playing); when `page > 1` they are **appended** (Load More). MovieList reports `total_pages` back up to App via `onTotalPages` so App can show/hide the Load More button (`page < totalPages`). Each card only needs `id`, `title`, `poster_path`, and `vote_average`, and the `poster_path` is turned into a full URL (`https://image.tmdb.org/t/p/w500{poster_path}`) inside MovieCard at render time. MovieList maps over `movies` and renders one **MovieCard** per movie, passing each `movie` object plus the `isFavorite`/`isWatched` flags derived from App's `favorites`/`watched` state.
+App owns the orchestration state (`mode`, `submittedQuery`, `page`, `totalPages`) and passes `mode`/`query`/`page` down to **MovieList** — but App itself does no network or data work. The actual fetching lives in the **`src/services/tmdb.js`** layer (`fetchNowPlaying(page)`, `searchMovies(query, page)`), which build the URL and return the raw JSON. MovieList runs a `useEffect` keyed on `[mode, query, page]`: it picks the matching service function, reads the `results[]` array, and stores it in its own `movies` state. When `page === 1` the results **replace** `movies` (initial load, a new search, or returning to Now Playing); when `page > 1` they are **appended** (Load More). MovieList reports `total_pages` back up to App via `onTotalPages` so App can show/hide the Load More button (`page < totalPages`). Each card only needs `id`, `title`, `poster_path`, and `vote_average`, and the `poster_path` is turned into a full URL (`https://image.tmdb.org/t/p/w500{poster_path}`) inside MovieCard at render time. MovieList maps over `movies` and renders one **MovieCard** per movie, passing each `movie` object and the click handler. (Passing `isFavorite`/`isWatched` flags derived from a `favorites`/`watched` store is planned but not yet wired — MovieCard's toggle props default to no-ops, so the heart/eye buttons render but don't persist anything yet.)
 
-When a user clicks a MovieCard, the card calls `onClick(movie.id)`; MovieList passes App's `onCardClick` straight through as that `onClick`, so the clicked movie's **id flows back up** to App and is stored in `selectedMovieId`. App owns a `useEffect` keyed on `[selectedMovieId]` that — when the id is non-null — calls `fetchMovieDetails(id)` (the `/movie/{id}` service function), storing the response in `details` (with `detailsLoading`/`detailsError` alongside) using an `ignore` flag to discard a stale response if the selection changes. App renders **MovieModal** (presentational — it does not fetch) whenever `selectedMovieId !== null`, passing `details`, `detailsLoading`, and `detailsError`. The details response is transformed for display inside the modal: `genres[]` is mapped to a comma-separated list of `name`s, `runtime` is formatted into hours/minutes, and `backdrop_path` is expanded into a full image URL (`w780`). Closing the modal (× button, backdrop click, or Escape) clears `selectedMovieId`, `details`, and `detailsError`. Sorting is a render-time transformation **inside MovieList** (the owner of that array): App holds `sortOption` and passes it down, and MovieList derives a sorted **copy** of `movies` via `useMemo` (title → A-Z, release date → newest first, vote average → highest first; "default" keeps API order) and maps over that copy. The source `movies` array is never reordered, so the pagination append logic is unaffected. Searching swaps the endpoint MovieList fetches — so the data path to MovieCard stays the same.
+When a user clicks a MovieCard, the card calls `onClick(movie.id)`; MovieList passes its own `handleCardClick` as that `onClick`, so the clicked movie's **id is stored in MovieList's `selectedMovieId`**. MovieList owns a second `useEffect` keyed on `[selectedMovieId]` that — when the id is non-null — calls `fetchMovieDetails(id)` (the `/movie/{id}` service function), storing the response in `details` (with `detailsLoading`/`detailsError` alongside) using an `ignore` flag to discard a stale response if the selection changes. MovieList renders **MovieModal** (which fetches the AI insight but not the TMDb details) whenever `selectedMovieId !== null`, passing `details`, `detailsLoading` (as `isLoading`), and `detailsError` (as `error`). The details response is transformed for display inside the modal: `genres[]` is mapped to a comma-separated list of `name`s, `runtime` is formatted into hours/minutes, and `backdrop_path` is expanded into a full image URL (`w780`). Closing the modal (× button, backdrop click, or Escape) calls MovieList's `handleCloseModal`, clearing `selectedMovieId`, `details`, and `detailsError`. Sorting is a render-time transformation **inside MovieList** (the owner of that array): App holds `sortOption` and passes it down, and MovieList derives a sorted **copy** of `movies` via `useMemo` (title → A-Z, release date → newest first, vote average → highest first; "default" keeps API order) and maps over that copy. The source `movies` array is never reordered, so the pagination append logic is unaffected. Searching swaps the endpoint MovieList fetches — so the data path to MovieCard stays the same.
 
 
 ### AI Feature Spec:
-- Which component will display the AI insight?  **MovieModal** — shown alongside the movie details.
 
-- Provider: **OpenRouter** (`https://openrouter.ai/api/v1/chat/completions`). The request is made **directly from the client to the AI API URL** (not through a backend server), so it is visible in the browser DevTools Network tab as required.
+**Where it lives.** The AI insight is displayed in **MovieModal**, alongside the movie details. The details/modal state ended up owned by **MovieList** (not App), and MovieModal already receives the fetched `details` object as a prop. So the AI state lives **inside MovieModal itself** (`aiInsight`, `loadingInsight`), keyed off the `details` it receives — this keeps the feature self-contained and avoids threading three more props through MovieList. The OpenRouter call is extracted into a thin service (`src/services/openrouter.js → getMovieInsight()`) so the component never calls `fetch` directly, matching the TMDb service-layer pattern.
 
-- Role: A concise film critic / watch-recommendation assistant.
+**Provider / endpoint.** OpenRouter, `POST https://openrouter.ai/api/v1/chat/completions`. The request is made **directly from the client** (not through a backend), so it is visible in DevTools → Network. Key comes from `import.meta.env.VITE_OPENROUTER_API_KEY` (in `.env`, gitignored). Model: `openrouter/free` (a free-tier model).
 
-- Task: Given one movie's data, return a short, friendly recommendation telling the user whether and why they might enjoy watching it.
+#### Prompt Spec
+- **Role (system):** An enthusiastic but honest film critic who gives quick, personal watch recommendations.
+- **Task (user):** Write a 2–3 sentence "watch recommendation" telling the reader whether the movie is worth their evening and why.
+- **Inputs:** `title`, `genres` (comma-separated list), and `overview` — passed in the user message.
+- **Output format:** Plain text only. 2–3 sentences. No markdown, no lists, no headings. No spoilers. No first-person "I" statements.
+- **Constraints:** No plot spoilers; no comparisons to other films unless genuinely helpful; avoid generic hype like "a must-see" or "instant classic"; base the take only on the supplied data; second-person/neutral voice (talk to the reader, not about yourself).
+- **Failure behavior:** While in flight, the modal shows `✨ Getting a recommendation…` (driven by `loadingInsight`). On any failure (non-OK status, network error, empty response) the catch returns a friendly fallback string: **"We couldn't generate a recommendation for this one — check out the overview above!"** The rest of the modal still renders normally.
 
-- Inputs (context sent to the AI): movie `title`, `genres`, `overview`, and `vote_average`.
-- Output format: Plain text, 2–3 sentences. No markdown, no lists.
+#### State / Trigger
+- **State (in MovieModal):** `aiInsight` (string|null, init `null`) and `loadingInsight` (boolean, init `false`).
+- **Trigger:** A `useEffect` keyed on the fetched `details` — once details are loaded (and not in a loading/error state), call `getMovieInsight(title, genres, overview)`. The effect uses an `ignore` flag so a stale response is discarded if the user switches movies.
+- **Reset on close:** Because MovieModal unmounts when the modal closes (it's only rendered while `selectedMovieId !== null`) and `details` is cleared, the next movie starts fresh with `aiInsight = null` / `loadingInsight = false` automatically.
 
-- Constraints: Keep to 2–3 sentences; no spoilers; conversational, encouraging tone; base the recommendation only on the supplied data.
-
-- Failure behavior: While the request is in flight, show a loading state (`aiLoading`) in the modal. If the call fails or returns nothing, show a graceful fallback message (e.g. "Couldn't generate a recommendation right now.") driven by `aiError` — the rest of the modal still renders normally.
-
-- Where does the AI response live in state? `aiRecommendation` (string|null), with `aiLoading` (boolean) and `aiError` (string|null) alongside it, owned by App and passed to MovieModal as props.
+### AI Feature — Decisions Log
+- **What the API returned initially:** With a bare prompt the model returned solid 2–3 sentence takes, but it leaned on generic hype ("an absolute must-see!", "you won't want to miss this") and occasionally slipped into first-person ("I loved…") and markdown bullet formatting.
+- **What I changed in my prompt:** Tightened the system message to explicitly ban first-person "I" statements, generic hype phrases ("must-see"/"instant classic"), markdown, and spoilers, and to cap length at 2–3 sentences in a second-person voice. Moved the movie context (title / comma-separated genres / overview) into the user message so the system message stays a stable instruction block. Added `.trim()` on the returned text and a guard that treats an empty/whitespace response as a failure so the fallback kicks in.
+- **What fallback behavior I implemented:** A single friendly fallback string returned from the service's `catch` (and on empty responses): "We couldn't generate a recommendation for this one — check out the overview above!" The modal renders it in the same Watch Recommendation slot, so a failed AI call never breaks the rest of the modal.
+- **What I learned:** Putting the async AI state *next to the data it depends on* (in MovieModal, keyed on the `details` prop via `useEffect`) made reset-on-close free — the component unmounts and remounts per movie, so no manual cleanup of `aiInsight` is needed. On prompt engineering: negative constraints ("don't say X") only reliably land when they're specific and enumerated; vague instructions like "avoid clichés" didn't move the output much.
 
 
 # Responsive / Breakpoints:

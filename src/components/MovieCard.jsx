@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types'
 import './MovieCard.css'
 
 const POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w500'
@@ -29,14 +28,16 @@ const MovieCard = ({
     ? `${POSTER_BASE_URL}${movie.poster_path}`
     : FALLBACK_POSTER
 
+  // Pass the whole movie up so favorites/watched views can render saved cards
+  // even when they're not in the current feed.
   const handleFavorite = (e) => {
     e.stopPropagation()
-    onToggleFavorite(movie.id)
+    onToggleFavorite(movie)
   }
 
   const handleWatched = (e) => {
     e.stopPropagation()
-    onToggleWatched(movie.id)
+    onToggleWatched(movie)
   }
 
   return (
@@ -48,19 +49,25 @@ const MovieCard = ({
           alt={movie.title}
           loading="lazy"
         />
-        <div className="movie-card__actions">
+        <div className="movie-card__actions movie-card__actions--left">
           <button
             type="button"
-            className={`movie-card__icon-btn${isFavorite ? ' is-active' : ''}`}
+            className={`movie-card__icon-btn movie-card__icon-btn--fav${
+              isFavorite ? ' is-active' : ''
+            }`}
             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             aria-pressed={isFavorite}
             onClick={handleFavorite}
           >
             <HeartIcon />
           </button>
+        </div>
+        <div className="movie-card__actions movie-card__actions--right">
           <button
             type="button"
-            className={`movie-card__icon-btn${isWatched ? ' is-active' : ''}`}
+            className={`movie-card__icon-btn movie-card__icon-btn--watched${
+              isWatched ? ' is-active' : ''
+            }`}
             aria-label={isWatched ? 'Mark as unwatched' : 'Mark as watched'}
             aria-pressed={isWatched}
             onClick={handleWatched}

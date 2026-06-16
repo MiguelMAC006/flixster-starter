@@ -14,7 +14,7 @@ const SearchBar = ({
   return (
     <form className="search-bar" role="search" onSubmit={handleSubmit}>
       <label className="search-bar__label" htmlFor="movie-search">
-        Search movies
+        Find a film
       </label>
       <input
         id="movie-search"

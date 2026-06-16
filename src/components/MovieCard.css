@@ -1,23 +1,27 @@
 .movie-card {
   display: flex;
   flex-direction: column;
-  background: #1c1c24;
-  border-radius: 10px;
-  overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.movie-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
 .movie-card__poster-wrap {
   position: relative;
   aspect-ratio: 2 / 3;
-  background: #2a2a33;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+    border-color 0.18s ease, filter 0.18s ease;
+}
+
+.movie-card:hover .movie-card__poster-wrap {
+  transform: translateY(-5px);
+  filter: brightness(1.08);
+  border-color: var(--gold);
+  box-shadow: var(--shadow-card-hover), 0 0 0 1px var(--gold-glow),
+    0 0 18px var(--gold-glow);
 }
 
 .movie-card__poster {
@@ -30,9 +34,30 @@
 .movie-card__actions {
   position: absolute;
   top: 8px;
-  right: 8px;
   display: flex;
   gap: 6px;
+}
+
+.movie-card__actions--left {
+  left: 8px;
+}
+
+.movie-card__actions--right {
+  right: 8px;
+}
+
+/* Buttons hide by default and reveal on card hover. An active
+   (favorited/watched) button stays visible even without hover, so the mark
+   persists on the card. */
+.movie-card__icon-btn {
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.15s ease, color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.movie-card:hover .movie-card__icon-btn,
+.movie-card__icon-btn.is-active {
+  opacity: 1;
 }
 
 .movie-card__icon-btn {
@@ -44,14 +69,14 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  background: rgba(11, 17, 23, 0.75);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .movie-card__icon-btn:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(11, 17, 23, 0.92);
+  color: var(--gold-bright);
   transform: scale(1.08);
 }
 
@@ -63,11 +88,17 @@
   stroke-width: 1.8;
 }
 
-.movie-card__icon-btn.is-active {
-  color: #ff5470;
+/* Active states: favorites glow crimson, watched glows forest green. */
+.movie-card__icon-btn--fav.is-active {
+  color: var(--crimson-bright);
 }
 
-.movie-card__icon-btn.is-active svg {
+.movie-card__icon-btn--watched.is-active {
+  color: var(--forest-bright);
+}
+
+/* Favorited heart fills solid; watched eye only changes color (stays outline). */
+.movie-card__icon-btn--fav.is-active svg {
   fill: currentColor;
   stroke: currentColor;
 }
@@ -77,15 +108,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 10px 2px 0;
 }
 
 .movie-card__title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.3;
-  color: #f5f5f7;
+  color: var(--text-primary);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -94,24 +125,24 @@
 
 .movie-card__rating {
   flex-shrink: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #ffd24a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gold);
   white-space: nowrap;
 }
 
 /* Mobile (2-up): shrink text and action buttons so cards stay uncluttered. */
 @media (max-width: 599px) {
   .movie-card__info {
-    padding: 8px 10px;
+    padding: 8px 2px 0;
   }
 
   .movie-card__title {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
   }
 
   .movie-card__rating {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .movie-card__icon-btn {

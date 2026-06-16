@@ -1,7 +1,7 @@
 .footer {
   margin-top: auto;
-  background-color: #1e1e26;
-  border-top: 1px solid #3a3a45;
+  background: linear-gradient(180deg, #0d141b 0%, #0b1117 100%);
+  border-top: 1px solid var(--border);
 }
 
 .footer__inner {
@@ -18,7 +18,7 @@
 .footer__copyright {
   margin: 0;
   font-size: 0.9rem;
-  color: #f2f2f5;
+  color: var(--text-primary);
 }
 
 .footer__links {
@@ -27,17 +27,21 @@
 }
 
 .footer__link {
-  font-size: 0.9rem;
-  color: #6c63ff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .footer__link:hover {
-  text-decoration: underline;
+  color: var(--gold-bright);
 }
 
 .footer__attribution {
   margin: 0;
   font-size: 0.78rem;
-  color: #b8b8c2;
+  color: var(--text-muted);
 }
